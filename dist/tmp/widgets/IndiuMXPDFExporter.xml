@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<widget id="indium.indiumxpdfexporter.IndiuMXPDFExporter" pluginWidget="true" needsEntityContext="true" offlineCapable="true"
+        supportedPlatform="Web"
+        xmlns="http://www.mendix.com/widget/1.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.mendix.com/widget/1.0/ ../node_modules/mendix/custom_widget.xsd">
+    <name>IndiuMX PDF Exporter</name>
+    <description>My widget description</description>
+    <icon/>
+    <properties>
+ <propertyGroup caption="General">
+            <!-- ClassName -> targetClass -->
+            <property key="targetClass" type="string" required="true">
+                <caption>ClassName</caption>
+                <description>CSS class of the HTML element to convert (e.g. "pdf-target").</description>
+            </property>
+
+            <!-- File option (Download / Preview / Get Base64) -->
+            <property key="fileOption" type="enumeration" defaultValue="download">
+                <caption>Output option</caption>
+                <description>Choose how to handle the generated PDF.</description>
+                <enumerationValues>
+                    <enumerationValue key="download">Download File</enumerationValue>
+                    <enumerationValue key="preview">Preview File</enumerationValue>
+                    <enumerationValue key="base64">Get Base64</enumerationValue>
+                </enumerationValues>
+            </property>
+
+            <!-- FileName (dynamic) -->
+            <property key="fileName" type="expression">
+                <caption>FileName</caption>
+                <description>Desired name for the PDF (without .pdf is fine). Supports expressions.</description>
+                <returnType type="String" />
+            </property>
+
+            <!-- PDFName attribute (stores final filename) -->
+            <property key="pdfNameAttr" type="attribute" required="false">
+                <caption>PDFName</caption>
+                <description>String attribute to store the generated filename.</description>
+                <attributeTypes>
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property>
+
+            <!-- Base64 attribute (stores PDF as base64 when fileOption = Get Base64) -->
+            <property key="base64Attr" type="attribute" required="false">
+                <caption>Base64</caption>
+                <description>String attribute to store the Base64-encoded PDF.</description>
+                <attributeTypes>
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property>
+
+            <!-- onChangeAction -->
+            <property key="onAfterGenerate" type="action" required="false">
+                <caption>onChangeAction</caption>
+                <description>Microflow/Nanoflow to run after PDF is generated or attributes are updated.</description>
+            </property>
+        </propertyGroup>
+
+        <!-- Rich Text inlining (iframe workaround) -->
+        <propertyGroup caption="Rich Text Mappings">
+            <property key="richSelector1" type="string" required="false">
+                <caption>Selector #1</caption>
+                <description>CSS selector (relative to ClassName) where Rich Text HTML #1 should be injected.</description>
+            </property>
+            <property key="richHtml1" type="attribute" required="false">
+                <caption>HTML #1</caption>
+                <description>String attribute containing sanitized Rich Text HTML.</description>
+                <attributeTypes>
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property>
+
+            <property key="richSelector2" type="string" required="false">
+                <caption>Selector #2</caption>
+                <description>CSS selector for second Rich Text block.</description>
+            </property>
+            <property key="richHtml2" type="attribute" required="false">
+                <caption>HTML #2</caption>
+                <description>String attribute containing sanitized Rich Text HTML.</description>
+                <attributeTypes>
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property>
+
+            <property key="richSelector3" type="string" required="false">
+                <caption>Selector #3</caption>
+                <description>CSS selector for third Rich Text block.</description>
+            </property>
+            <property key="richHtml3" type="attribute" required="false">
+                <caption>HTML #3</caption>
+                <description>String attribute containing sanitized Rich Text HTML.</description>
+                <attributeTypes>
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property>
+        </propertyGroup>
+
+        <!-- Advanced rendering -->
+        <propertyGroup caption="Advanced">
+            <property key="pageMargin" type="string" required="false" defaultValue="10mm">
+                <caption>Page margin</caption>
+                <description>Margin to use when rendering the PDF (e.g. 10mm).</description>
+            </property>
+
+            <property key="scale" type="decimal" required="true" defaultValue="1.0">
+                <caption>Scale</caption>
+                <description>Rendering scale for html2canvas (0.5–2). 1.0 by default.</description>
+            </property>
+
+            <!-- Optional button UI -->
+            <property key="buttonCaption" type="textTemplate" required="false">
+                <caption>Button caption</caption>
+                <description>Caption for the built-in button. Leave empty if you hide the button.</description>
+            </property>
+            <property key="buttonClass" type="string" required="false"
+                defaultValue="btn btn-primary">
+                <caption>Button class</caption>
+                <description>CSS classes for the built-in button.</description>
+            </property>
+            <property key="hideButton" type="boolean" defaultValue="false">
+                <caption>Hide button</caption>
+                <description>Hide the built-in button if you will trigger the widget externally.</description>
+            </property>
+        </propertyGroup>
+
+        <!-- Common system properties -->
+        <propertyGroup caption="Common">
+            <systemProperty key="Name" />
+            <systemProperty key="TabIndex" />
+            <systemProperty key="Visibility" />
+            <systemProperty key="Editability" />
+        </propertyGroup>
+    </properties>
+</widget>
