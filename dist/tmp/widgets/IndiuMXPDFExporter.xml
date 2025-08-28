@@ -51,7 +51,7 @@
             </property>
 
             <!-- onChangeAction -->
-            <property key="onAfterGenerate" type="action" required="false">
+            <property key="onChange" type="action" required="false">
                 <caption>onChangeAction</caption>
                 <description>Microflow/Nanoflow to run after PDF is generated or attributes are updated.</description>
             </property>

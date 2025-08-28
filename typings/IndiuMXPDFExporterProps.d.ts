@@ -19,7 +19,7 @@ export interface IndiuMXPDFExporterContainerProps {
     fileName: DynamicValue<string>;
     pdfNameAttr?: EditableValue<string>;
     base64Attr?: EditableValue<string>;
-    onAfterGenerate?: ActionValue;
+    onChange?: ActionValue;
     richSelector1: string;
     richHtml1?: EditableValue<string>;
     richSelector2: string;
@@ -49,7 +49,7 @@ export interface IndiuMXPDFExporterPreviewProps {
     fileName: string;
     pdfNameAttr: string;
     base64Attr: string;
-    onAfterGenerate: {} | null;
+    onChange: {} | null;
     richSelector1: string;
     richHtml1: string;
     richSelector2: string;

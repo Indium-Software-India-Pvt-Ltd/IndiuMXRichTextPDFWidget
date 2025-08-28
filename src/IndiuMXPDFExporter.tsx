@@ -20,23 +20,155 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
         return temp.innerHTML;
     };
 
+    // Enhanced function to extract and preserve rich text content
+    const extractRichTextContent = (): Map<string, string> => {
+        const richTextMap = new Map<string, string>();
+        
+        // Try multiple selectors to find rich text widgets
+        const selectors = [
+            '.mx-name-richText1 .ql-editor',
+            '.widget-rich-text .ql-editor',
+            '[class*="richText"] .ql-editor',
+            '.ql-container .ql-editor',
+            '.widget-rich-text-container .ql-editor'
+        ];
+        
+        selectors.forEach(selector => {
+            const editors = document.querySelectorAll<HTMLElement>(selector);
+            editors.forEach((editor, index) => {
+                if (editor && editor.innerHTML) {
+                    const key = `${selector}-${index}`;
+                    let content = editor.innerHTML;
+                    
+                    // Also try to get text content if innerHTML looks like plain text
+                    const textContent = editor.textContent || editor.innerText || '';
+                    
+                    // Check if content is JSON and format it
+                    if (textContent.trim().startsWith('{') && textContent.trim().endsWith('}')) {
+                        try {
+                            const parsed = JSON.parse(textContent);
+                            content = `<div class="json-formatted"><pre>${JSON.stringify(parsed, null, 2)}</pre></div>`;
+                        } catch (e) {
+                            // Not valid JSON, use original HTML
+                        }
+                    }
+                    
+                    richTextMap.set(key, content);
+                    console.log(`Found rich text content at ${selector}:`, content.substring(0, 100));
+                }
+            });
+        });
+        
+        // Also look for contenteditable elements
+        document.querySelectorAll<HTMLElement>('[contenteditable="true"]').forEach((editor, index) => {
+            if (editor && editor.innerHTML && !richTextMap.has(`contenteditable-${index}`)) {
+                richTextMap.set(`contenteditable-${index}`, editor.innerHTML);
+                console.log(`Found contenteditable content:`, editor.innerHTML.substring(0, 100));
+            }
+        });
+        
+        console.log(`Total rich text elements found: ${richTextMap.size}`);
+        return richTextMap;
+    };
+
+    // Replace rich text widgets in the cloned element
+    const replaceRichTextWidgets = (clone: HTMLElement, richTextMap: Map<string, string>) => {
+        // Find all potential rich text containers in the clone
+        const containers = [
+            ...Array.from(clone.querySelectorAll<HTMLElement>('.mx-name-richText1')),
+            ...Array.from(clone.querySelectorAll<HTMLElement>('.widget-rich-text')),
+            ...Array.from(clone.querySelectorAll<HTMLElement>('[class*="richText"]')),
+            ...Array.from(clone.querySelectorAll<HTMLElement>('.form-group:has(.ql-editor)')),
+        ];
+        
+        let replacementCount = 0;
+        
+        containers.forEach(container => {
+            // Try to find any rich text content for this container
+            let contentFound = false;
+            
+            // First, check if we have content from the extraction
+            for (const [key, content] of richTextMap.entries()) {
+                if (!contentFound && content) {
+                    // Create a replacement div with the content
+                    const replacement = document.createElement('div');
+                    replacement.className = 'mx-richtext-printed';
+                    replacement.innerHTML = `
+                        <div class="rich-text-label">Rich Text Content:</div>
+                        <div class="rich-text-content">${content}</div>
+                    `;
+                    
+                    // Replace the entire container
+                    if (container.parentElement) {
+                        container.parentElement.replaceChild(replacement, container);
+                        contentFound = true;
+                        replacementCount++;
+                        console.log(`Replaced container ${replacementCount} with rich text content`);
+                        break;
+                    }
+                }
+            }
+            
+            // If no content was found in the map, try to extract directly from the clone
+            if (!contentFound) {
+                const editor = container.querySelector<HTMLElement>('.ql-editor');
+                if (editor && editor.innerHTML) {
+                    const replacement = document.createElement('div');
+                    replacement.className = 'mx-richtext-printed';
+                    replacement.innerHTML = `
+                        <div class="rich-text-label">Rich Text Content:</div>
+                        <div class="rich-text-content">${editor.innerHTML}</div>
+                    `;
+                    
+                    if (container.parentElement) {
+                        container.parentElement.replaceChild(replacement, container);
+                        replacementCount++;
+                        console.log(`Replaced container ${replacementCount} with directly extracted content`);
+                    }
+                }
+            }
+        });
+        
+        // Remove any remaining Quill UI elements
+        clone.querySelectorAll('.ql-toolbar, .ql-tooltip, .widget-rich-text-toolbar, .widget-rich-text-footer').forEach(el => {
+            el.remove();
+        });
+        
+        console.log(`Total containers replaced: ${replacementCount}`);
+        
+        // If no replacements were made, inject the content at the end
+        if (replacementCount === 0 && richTextMap.size > 0) {
+            const fallbackContainer = document.createElement('div');
+            fallbackContainer.className = 'rich-text-fallback';
+            fallbackContainer.innerHTML = '<h3>Rich Text Content:</h3>';
+            
+            for (const [key, content] of richTextMap.entries()) {
+                if (content) {
+                    fallbackContainer.innerHTML += `<div class="mx-richtext-printed">${content}</div>`;
+                }
+            }
+            
+            clone.appendChild(fallbackContainer);
+            console.log('Added rich text content as fallback at the end of document');
+        }
+    };
+
     const captureComputedStyles = (element: HTMLElement): string => {
         const allElements = element.querySelectorAll('*');
         const styleRules: string[] = [];
         
-        // Capture computed styles for each element
         allElements.forEach((el, index) => {
             const computed = window.getComputedStyle(el);
             const className = `captured-style-${index}`;
             (el as HTMLElement).classList.add(className);
             
-            // Extract important style properties
             const importantProps = [
                 'display', 'position', 'width', 'height', 'margin', 'padding',
                 'border', 'background', 'color', 'font-family', 'font-size',
                 'font-weight', 'text-align', 'line-height', 'float', 'clear',
                 'flex', 'flex-direction', 'justify-content', 'align-items',
-                'grid-template-columns', 'grid-template-rows', 'gap'
+                'grid-template-columns', 'grid-template-rows', 'gap',
+                'white-space', 'word-break', 'word-wrap', 'overflow-wrap'
             ];
             
             const styles = importantProps
@@ -62,6 +194,14 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
         setBusy(true);
 
         try {
+            console.log('Starting PDF generation...');
+            
+            // Extract rich text content BEFORE cloning
+            const richTextMap = extractRichTextContent();
+            
+            // Small delay to ensure all content is rendered
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             const targetClass = props.targetClass || 'mx-page';
             const target = document.querySelector(`.${targetClass}`) as HTMLElement;
             
@@ -72,11 +212,14 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             // Clone the target
             const clone = target.cloneNode(true) as HTMLElement;
             
+            // Replace rich text widgets with extracted content
+            replaceRichTextWidgets(clone, richTextMap);
+            
             // Get original dimensions
             const rect = target.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(target);
             
-            // Apply rich text mappings
+            // Apply additional rich text mappings from props if provided
             const mappings = [
                 { selector: props.richSelector1 || '', html: props.richHtml1?.value || '' },
                 { selector: props.richSelector2 || '', html: props.richHtml2?.value || '' },
@@ -97,7 +240,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             const capturedStyles = captureComputedStyles(clone);
             
             // Clean up unwanted elements
-            clone.querySelectorAll('button:not(.keep-in-pdf), .mx-dataview-controls, .paging-status, .mx-grid-pagingbar').forEach(el => {
+            clone.querySelectorAll('button:not(.keep-in-pdf), .paging-status, .mx-grid-pagingbar').forEach(el => {
                 el.remove();
             });
             
@@ -109,7 +252,6 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
                 try {
                     const rules = Array.from(sheet.cssRules || sheet.rules || []);
                     rules.forEach(rule => {
-                        // Filter out print-specific rules that might break layout
                         if (rule instanceof CSSStyleRule && !rule.selectorText?.includes('@media print')) {
                             existingStyles += rule.cssText + '\n';
                         }
@@ -153,6 +295,8 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             line-height: ${computedStyle.lineHeight || '1.5'};
             color: ${computedStyle.color || '#000000'};
             background: ${computedStyle.backgroundColor || '#ffffff'};
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         
         /* Preserve original styles */
@@ -161,11 +305,92 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
         /* Captured computed styles */
         ${capturedStyles}
         
-        /* Table fixes for print */
+        /* Rich text printing styles */
+        .mx-richtext-printed {
+            display: block !important;
+            margin: 20px 0 !important;
+            padding: 15px !important;
+            border: 1px solid #ddd !important;
+            background: #f9f9f9 !important;
+            border-radius: 4px !important;
+        }
+        
+        .rich-text-label {
+            font-weight: bold !important;
+            margin-bottom: 10px !important;
+            color: #333 !important;
+        }
+        
+        .rich-text-content {
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            font-family: inherit !important;
+            line-height: 1.6 !important;
+            color: #000 !important;
+        }
+        
+        .json-formatted {
+            background-color: #f5f5f5 !important;
+            border: 1px solid #ccc !important;
+            border-radius: 3px !important;
+            padding: 10px !important;
+            margin: 10px 0 !important;
+        }
+        
+        .json-formatted pre {
+            white-space: pre-wrap !important;
+            word-break: break-all !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-size: 12px !important;
+            margin: 0 !important;
+            color: #000 !important;
+        }
+        
+        .rich-text-fallback {
+            margin-top: 30px !important;
+            padding: 20px !important;
+            border-top: 2px solid #ddd !important;
+        }
+        
+        .rich-text-fallback h3 {
+            margin-bottom: 15px !important;
+            color: #333 !important;
+        }
+        
+        /* Ensure rich text formatting is preserved */
+        .mx-richtext-printed p,
+        .rich-text-content p {
+            margin: 0 0 10px 0 !important;
+        }
+        
+        .mx-richtext-printed ul, .mx-richtext-printed ol,
+        .rich-text-content ul, .rich-text-content ol {
+            margin: 0 0 10px 20px !important;
+            padding-left: 20px !important;
+        }
+        
+        .mx-richtext-printed li,
+        .rich-text-content li {
+            margin: 0 0 5px 0 !important;
+        }
+        
+        .mx-richtext-printed strong, .mx-richtext-printed b,
+        .rich-text-content strong, .rich-text-content b {
+            font-weight: bold !important;
+        }
+        
+        .mx-richtext-printed em, .mx-richtext-printed i,
+        .rich-text-content em, .rich-text-content i {
+            font-style: italic !important;
+        }
+        
+        /* Table styles */
         table {
             width: 100% !important;
             border-collapse: collapse !important;
             page-break-inside: auto !important;
+            margin: 10px 0 !important;
         }
         
         thead {
@@ -181,33 +406,28 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
         }
         
         th, td {
-            padding: 6px !important;
+            padding: 8px !important;
             border: 1px solid #ddd !important;
+            text-align: left !important;
         }
         
-        /* Preserve flexbox and grid layouts */
-        .d-flex, .flex, [style*="display: flex"] {
-            display: flex !important;
+        th {
+            background-color: #f5f5f5 !important;
+            font-weight: bold !important;
         }
         
-        .d-grid, .grid, [style*="display: grid"] {
-            display: grid !important;
-        }
-        
-        /* Handle images */
-        img {
-            max-width: 100% !important;
-            height: auto !important;
-            page-break-inside: avoid !important;
-        }
-        
-        /* Hide elements that shouldn't print */
+        /* Hide unwanted elements */
         .no-print,
         button:not(.print-button),
         input[type="button"],
         input[type="submit"],
         .mx-button:not(.print-button),
-        .btn:not(.print-button) {
+        .btn:not(.print-button),
+        .ql-toolbar,
+        .ql-tooltip,
+        .ql-table-menus-container,
+        .widget-rich-text-toolbar,
+        .widget-rich-text-footer {
             display: none !important;
         }
         
@@ -221,7 +441,6 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             flex: 0 0 auto !important;
         }
         
-        /* Fix for nested content */
         .mx-container,
         .mx-scrollcontainer-wrapper {
             width: 100% !important;
@@ -239,6 +458,11 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
                 overflow: visible !important;
                 max-height: none !important;
             }
+            
+            .mx-richtext-printed {
+                page-break-inside: avoid !important;
+                background: white !important;
+            }
         }
     </style>
 </head>
@@ -249,8 +473,18 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
 </body>
 </html>`;
 
+            console.log('HTML document prepared for PDF');
+
             // Convert to base64
-            const base64 = btoa(unescape(encodeURIComponent(htmlDocument)));
+            const toBase64InChunks = (u8a: Uint8Array): string => {
+                const CHUNK_SIZE = 8192;
+                let binString = "";
+                for (let i = 0; i < u8a.length; i += CHUNK_SIZE) {
+                    binString += String.fromCodePoint(...u8a.subarray(i, i + CHUNK_SIZE));
+                }
+                return btoa(binString);
+            };
+            const base64 = toBase64InChunks(new TextEncoder().encode(htmlDocument));
             const cleanFileName = fileName.replace(/[\/:*?"<>|]+/g, '_');
             
             if (props.pdfNameAttr?.setValue) {
@@ -304,7 +538,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
 
         } catch (error) {
             console.error('PDF generation error:', error);
-            alert('Failed to generate PDF. Please use Ctrl+P (or Cmd+P on Mac) to print manually.');
+            alert('Failed to generate PDF. Check the browser console for details.');
         } finally {
             setBusy(false);
         }
