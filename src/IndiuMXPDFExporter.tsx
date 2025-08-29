@@ -94,8 +94,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
                     const replacement = document.createElement('div');
                     replacement.className = 'mx-richtext-printed';
                     replacement.innerHTML = `
-                        <div class="rich-text-label">Rich Text Content:</div>
-                        <div class="rich-text-content">${content}</div>
+
                     `;
                     
                     // Replace the entire container
@@ -116,8 +115,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
                     const replacement = document.createElement('div');
                     replacement.className = 'mx-richtext-printed';
                     replacement.innerHTML = `
-                        <div class="rich-text-label">Rich Text Content:</div>
-                        <div class="rich-text-content">${editor.innerHTML}</div>
+
                     `;
                     
                     if (container.parentElement) {
@@ -140,13 +138,8 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
         if (replacementCount === 0 && richTextMap.size > 0) {
             const fallbackContainer = document.createElement('div');
             fallbackContainer.className = 'rich-text-fallback';
-            fallbackContainer.innerHTML = '<h3>Rich Text Content:</h3>';
-            
-            for (const [content] of richTextMap.entries()) {
-                if (content) {
-                    fallbackContainer.innerHTML += `<div class="mx-richtext-printed">${content}</div>`;
-                }
-            }
+  
+        
             
             clone.appendChild(fallbackContainer);
             console.log('Added rich text content as fallback at the end of document');
