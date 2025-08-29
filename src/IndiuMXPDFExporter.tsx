@@ -88,7 +88,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             let contentFound = false;
             
             // First, check if we have content from the extraction
-            for (const [key, content] of richTextMap.entries()) {
+            for (const [ content] of richTextMap.entries()) {
                 if (!contentFound && content) {
                     // Create a replacement div with the content
                     const replacement = document.createElement('div');
@@ -142,7 +142,7 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
             fallbackContainer.className = 'rich-text-fallback';
             fallbackContainer.innerHTML = '<h3>Rich Text Content:</h3>';
             
-            for (const [key, content] of richTextMap.entries()) {
+            for (const [content] of richTextMap.entries()) {
                 if (content) {
                     fallbackContainer.innerHTML += `<div class="mx-richtext-printed">${content}</div>`;
                 }
