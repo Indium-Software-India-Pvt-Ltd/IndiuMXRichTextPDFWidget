@@ -1,8 +1,137 @@
 import { createElement, Fragment, useCallback, useState } from "react";
 import { IndiuMXPDFExporterContainerProps } from "../typings/IndiuMXPDFExporterProps";
+import html2pdf from "html2pdf.js";
 
 export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX.Element {
     const [busy, setBusy] = useState(false);
+
+    // Helper function
+const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  
+  let binaryString = '';
+  const chunkSize = 1024;
+  
+  for (let i = 0; i < uint8Array.length; i += chunkSize) {
+    const chunk = uint8Array.slice(i, i + chunkSize);
+    binaryString += String.fromCharCode.apply(null, Array.from(chunk));
+  }
+  
+  return btoa(binaryString);
+};
+
+  const convertLargeHTMLToPDF = async (
+    htmlDocument: string,
+    fileName: string
+  ): Promise<{ blob: Blob; base64: string }> => {
+  
+  console.log('Starting optimized PDF generation...');
+  
+  const element = document.createElement('div');
+  element.innerHTML = htmlDocument;
+  
+  // Optimized styling for perfect matching
+  element.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 15px;
+    border: 0;
+    background: white;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.3;
+    color: black;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    white-space: normal;
+    word-wrap: break-word;
+    z-index: 10000;
+    box-sizing: border-box;
+    visibility: visible;
+    opacity: 1;
+  `;
+  
+  document.body.appendChild(element);
+  
+  try {
+    // Extended wait for complete rendering
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Force layout recalculation
+    element.offsetHeight;
+    
+    // Get precise measurements
+    const captureWidth = Math.max(element.scrollWidth, 800);
+    const captureHeight = Math.max(element.scrollHeight, 600);
+     const computedStyle = window.getComputedStyle(element);
+    const capturedBackground = computedStyle.backgroundColor || '#ffffff';
+    
+    console.log('Final capture dimensions:', captureWidth, 'x', captureHeight);
+    
+    // Optimized configuration
+    const opt: Partial<html2pdf.Options> = {
+      margin: [5, 5, 5, 5] as number[], // Minimal margins
+      filename: `${fileName}.pdf`,
+      image: {
+        type: 'png',
+        quality: 0.96 // Slightly lower for better performance, still high quality
+      },
+      html2canvas: {
+        scale: 1,
+        useCORS: true,
+        allowTaint: true,
+        logging: false, // Disable logging for cleaner output
+        backgroundColor: capturedBackground,
+        width: captureWidth,
+        height: captureHeight,
+        windowWidth: captureWidth,
+        windowHeight: captureHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+        removeContainer: false,
+        foreignObjectRendering: false,
+        letterRendering: true // Enable for better text rendering
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4', // Standard A4 format
+        orientation: 'portrait',
+        compress: true // Enable compression for smaller file size
+      },
+      pagebreak: {
+        mode: ['avoid-all', 'css']
+      }
+    };
+
+    const pdfBlob: Blob = await html2pdf()
+      .set(opt)
+      .from(element)
+      .output('blob');
+
+    console.log('Optimized PDF generated. Size:', pdfBlob.size, 'bytes');
+
+    // Use the reliable ArrayBuffer method for base64 conversion
+    const base64 = await blobToBase64ArrayBuffer(pdfBlob);
+    
+    return { blob: pdfBlob, base64 };
+    
+  } finally {
+    // Quick cleanup
+    setTimeout(() => {
+      if (document.body.contains(element)) {
+        document.body.removeChild(element);
+      }
+    }, 1000);
+  }
+};
+
+
 
     const sanitizeHTML = (html: string): string => {
         const temp = document.createElement('div');
@@ -468,14 +597,9 @@ export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX
 
             console.log('HTML document prepared for PDF');
 
-            // Convert to base64
-            const toBase64InChunks = (u8a: Uint8Array): string => {
-                const binString = Array.from(u8a, (byte) => String.fromCharCode(byte)).join('');
-                return btoa(binString);
-            };
-            const base64 = toBase64InChunks(new TextEncoder().encode(htmlDocument));
-            const cleanFileName = fileName.replace(/[\/:*?"<>|]+/g, '_');
 
+            const cleanFileName = fileName.replace(/[\/:*?"<>|]+/g, '_');
+            const { base64 } = await convertLargeHTMLToPDF(htmlDocument, cleanFileName);
             if (props.pdfNameAttr?.setValue) {
                 props.pdfNameAttr.setValue(cleanFileName + '.pdf');
             }
