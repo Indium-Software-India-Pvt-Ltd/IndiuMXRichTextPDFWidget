@@ -21,17 +21,15 @@ const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
   return btoa(binaryString);
 };
 
-  const convertLargeHTMLToPDF = async (
-    htmlDocument: string,
-    fileName: string
-  ): Promise<{ blob: Blob; base64: string }> => {
-  
-  console.log('Starting optimized PDF generation...');
+  const convertLargeHTMLToPDF =async (
+  htmlDocument: string,
+  fileName: string
+): Promise<{ blob: Blob; base64: string }> => {
   
   const element = document.createElement('div');
   element.innerHTML = htmlDocument;
   
-  // Optimized styling for perfect matching
+  // Position normally but we'll cover it with an overlay
   element.style.cssText = `
     position: fixed;
     top: 0;
@@ -49,43 +47,108 @@ const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
     overflow: visible;
     white-space: normal;
     word-wrap: break-word;
-    z-index: 10000;
+    z-index: 1000;
     box-sizing: border-box;
     visibility: visible;
     opacity: 1;
   `;
   
+  // Create an overlay to cover the element
+  const overlay = document.createElement('div');
+overlay.innerHTML = `
+    <div class="mx-loading-container">
+      <div class="mx-loading-spinner"></div>
+      <div class="mx-loading-text">Generating PDF...</div>
+    </div>
+    
+    <style>
+      .mx-loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 120px;
+        padding: 30px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 1px solid #e6e6e6;
+        max-width: 280px;
+        text-align: center;
+      }
+      
+      .mx-loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #f0f0f0;
+        border-top: 3px solid #264ae5;
+        border-radius: 50%;
+        animation: mx-spin 1.2s linear infinite;
+        margin-bottom: 16px;
+      }
+      
+      .mx-loading-text {
+        color: #555555;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.4;
+        margin: 0;
+        letter-spacing: 0.02em;
+      }
+      
+      @keyframes mx-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Overlay backdrop */
+      .mx-loading-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(1px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: mx-fade-in 0.2s ease-out;
+      }
+      
+      @keyframes mx-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+    </style>
+  `;
+  
+  overlay.className = 'mx-loading-backdrop';
+
   document.body.appendChild(element);
+  document.body.appendChild(overlay);
   
   try {
-    // Extended wait for complete rendering
     await new Promise(resolve => setTimeout(resolve, 1200));
     
-    // Force layout recalculation
-    element.offsetHeight;
-    
-    // Get precise measurements
     const captureWidth = Math.max(element.scrollWidth, 800);
     const captureHeight = Math.max(element.scrollHeight, 600);
-     const computedStyle = window.getComputedStyle(element);
-    const capturedBackground = computedStyle.backgroundColor || '#ffffff';
     
-    console.log('Final capture dimensions:', captureWidth, 'x', captureHeight);
-    
-    // Optimized configuration
     const opt: Partial<html2pdf.Options> = {
-      margin: [5, 5, 5, 5] as number[], // Minimal margins
+      margin: [5, 5, 5, 5] as number[],
       filename: `${fileName}.pdf`,
       image: {
         type: 'png',
-        quality: 0.96 // Slightly lower for better performance, still high quality
+        quality: 0.96
       },
       html2canvas: {
         scale: 1,
         useCORS: true,
         allowTaint: true,
-        logging: false, // Disable logging for cleaner output
-        backgroundColor: capturedBackground,
+        logging: false,
+        backgroundColor: '#ffffff',
         width: captureWidth,
         height: captureHeight,
         windowWidth: captureWidth,
@@ -96,13 +159,13 @@ const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
         scrollY: 0,
         removeContainer: false,
         foreignObjectRendering: false,
-        letterRendering: true // Enable for better text rendering
+        letterRendering: true
       },
       jsPDF: {
         unit: 'mm',
-        format: 'a4', // Standard A4 format
+        format: 'a4',
         orientation: 'portrait',
-        compress: true // Enable compression for smaller file size
+        compress: true
       },
       pagebreak: {
         mode: ['avoid-all', 'css']
@@ -114,20 +177,19 @@ const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
       .from(element)
       .output('blob');
 
-    console.log('Optimized PDF generated. Size:', pdfBlob.size, 'bytes');
-
-    // Use the reliable ArrayBuffer method for base64 conversion
     const base64 = await blobToBase64ArrayBuffer(pdfBlob);
-    
     return { blob: pdfBlob, base64 };
     
   } finally {
-    // Quick cleanup
+    // Remove both elements
     setTimeout(() => {
       if (document.body.contains(element)) {
         document.body.removeChild(element);
       }
-    }, 1000);
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+    }, 100);
   }
 };
 

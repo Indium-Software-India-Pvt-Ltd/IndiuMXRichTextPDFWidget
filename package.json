@@ -34,9 +34,7 @@
     "classnames": "^2.2.6",
     "dompurify": "^3.2.6",
     "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.9.0",
-    "jspdf": "^3.0.2",
-    "pdfkit": "^0.17.2"
+    "html2pdf.js": "^0.9.0"
   },
   "resolutions": {
     "react": "^18.2.0",
