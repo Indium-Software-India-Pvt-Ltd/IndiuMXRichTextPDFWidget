@@ -262,6 +262,41 @@ overlay.innerHTML = `
         return richTextMap;
     };
 
+    // Sync form control state (checked, value) from original to clone so PDF reflects current selection.
+    // cloneNode(true) copies attributes; radios/checkboxes often have only the .checked property set by Mendix.
+    const syncFormStateToClone = (original: HTMLElement, clone: HTMLElement): void => {
+        const origInputs = original.querySelectorAll<HTMLInputElement>('input');
+        const cloneInputs = clone.querySelectorAll<HTMLInputElement>('input');
+        if (origInputs.length !== cloneInputs.length) return;
+        origInputs.forEach((orig, i) => {
+            const cl = cloneInputs[i];
+            if (!cl || cl.type !== orig.type) return;
+            if (orig.type === 'radio' || orig.type === 'checkbox') {
+                cl.checked = orig.checked;
+                if (orig.checked) cl.setAttribute('checked', 'checked');
+                else cl.removeAttribute('checked');
+            } else if (orig.type !== 'submit' && orig.type !== 'button' && orig.type !== 'hidden') {
+                cl.value = orig.value;
+                cl.setAttribute('value', orig.value);
+            }
+        });
+        const origSelects = original.querySelectorAll<HTMLSelectElement>('select');
+        const cloneSelects = clone.querySelectorAll<HTMLSelectElement>('select');
+        origSelects.forEach((orig, i) => {
+            const cl = cloneSelects[i];
+            if (cl) cl.selectedIndex = orig.selectedIndex;
+        });
+        const origTextareas = original.querySelectorAll<HTMLTextAreaElement>('textarea');
+        const cloneTextareas = clone.querySelectorAll<HTMLTextAreaElement>('textarea');
+        origTextareas.forEach((orig, i) => {
+            const cl = cloneTextareas[i];
+            if (cl) {
+                cl.value = orig.value;
+                cl.setAttribute('value', orig.value);
+            }
+        });
+    };
+
     // Replace rich text widgets in the cloned element
     const replaceRichTextWidgets = (clone: HTMLElement, richTextMap: Map<string, string>) => {
         // Find all potential rich text containers in the clone
@@ -395,6 +430,9 @@ overlay.innerHTML = `
 
             // Clone the target
             const clone = target.cloneNode(true) as HTMLElement;
+
+            // Sync radio/checkbox/input/select/textarea state from live DOM so PDF shows current selection
+            syncFormStateToClone(target, clone);
 
             // Replace rich text widgets with extracted content
             replaceRichTextWidgets(clone, richTextMap);
