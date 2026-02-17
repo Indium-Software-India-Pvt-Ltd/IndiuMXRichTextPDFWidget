@@ -39,10 +39,10 @@ const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
     border: 0;
     background: white;
     font-family: Arial, sans-serif;
-    font-size: 11px;
-    line-height: 1.3;
+    font-size: 14px;
+    line-height: 1.5;
     color: black;
-    width: auto;
+    width: 756px;
     height: auto;
     overflow: visible;
     white-space: normal;
@@ -144,7 +144,7 @@ overlay.innerHTML = `
         quality: 0.96
       },
       html2canvas: {
-        scale: 1,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
@@ -284,7 +284,41 @@ overlay.innerHTML = `
         const cloneSelects = clone.querySelectorAll<HTMLSelectElement>('select');
         origSelects.forEach((orig, i) => {
             const cl = cloneSelects[i];
-            if (cl) cl.selectedIndex = orig.selectedIndex;
+            if (!cl) return;
+
+            // Sync the selected attribute on <option> elements (like checkbox setAttribute fix)
+            Array.from(cl.options).forEach(opt => opt.removeAttribute('selected'));
+            const selectedOption = orig.options[orig.selectedIndex];
+            if (selectedOption) {
+                const cloneOption = cl.options[orig.selectedIndex];
+                if (cloneOption) cloneOption.setAttribute('selected', 'selected');
+            }
+            const displayText = selectedOption ? selectedOption.text : '';
+
+            // Replace the <select> with a styled span that shows the selected value.
+            // html2canvas cannot reliably render native <select> elements, so we
+            // substitute a text span in the clone that will be serialized to HTML.
+            const replacement = document.createElement('span');
+            replacement.textContent = displayText;
+            replacement.style.cssText = `
+                display: inline-block;
+                padding: 6px 12px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: #fff;
+                font-size: inherit;
+                font-family: inherit;
+                line-height: inherit;
+                color: #333;
+                min-width: 120px;
+                min-height: 34px;
+                vertical-align: middle;
+            `;
+            replacement.className = cl.className;
+
+            if (cl.parentNode) {
+                cl.parentNode.replaceChild(replacement, cl);
+            }
         });
         const origTextareas = original.querySelectorAll<HTMLTextAreaElement>('textarea');
         const cloneTextareas = clone.querySelectorAll<HTMLTextAreaElement>('textarea');
@@ -440,6 +474,8 @@ overlay.innerHTML = `
             // Get original dimensions
             const rect = target.getBoundingClientRect();
             const computedStyle = window.getComputedStyle(target);
+            // Constrain width to A4 content area (210mm - 2*5mm margins ≈ 756px at 96dpi)
+            const pdfContentWidth = Math.min(rect.width, 756);
 
             // Apply additional rich text mappings from props if provided
             const mappings = [
@@ -492,7 +528,7 @@ overlay.innerHTML = `
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=${rect.width}">
+    <meta name="viewport" content="width=${pdfContentWidth}">
     <title>${fileName}</title>
     <style>
         /* Reset and base styles */
@@ -510,7 +546,7 @@ overlay.innerHTML = `
         body {
             margin: 0;
             padding: 0;
-            width: ${rect.width}px;
+            width: ${pdfContentWidth}px;
             min-height: ${rect.height}px;
             font-family: ${computedStyle.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif'};
             font-size: ${computedStyle.fontSize || '14px'};
@@ -689,7 +725,7 @@ overlay.innerHTML = `
     </style>
 </head>
 <body>
-    <div class="pdf-content-wrapper" style="width: ${rect.width}px;">
+    <div class="pdf-content-wrapper" style="width: ${pdfContentWidth}px;">
         ${clone.innerHTML}
     </div>
 </body>
