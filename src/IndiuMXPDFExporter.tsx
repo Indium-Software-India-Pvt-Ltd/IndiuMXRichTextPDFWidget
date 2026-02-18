@@ -295,15 +295,16 @@ overlay.innerHTML = `
             }
             const displayText = selectedOption ? selectedOption.text : '';
 
-            // Replace the <select> with a styled span that shows the selected value.
-            // html2canvas cannot reliably render native <select> elements, so we
-            // substitute a text span in the clone that will be serialized to HTML.
+            // Replace the <select> with a dropdown-styled container (text + chevron) so the PDF
+            // matches the UI. html2canvas cannot reliably render native <select> elements.
             const replacement = document.createElement('span');
-            replacement.textContent = displayText;
+            replacement.className = cl.className;
+            replacement.setAttribute('data-pdf-dropdown', 'true');
             replacement.style.cssText = `
-                display: inline-block;
-                padding: 6px 12px;
-                border: 1px solid #ccc;
+                display: inline-flex;
+                align-items: center;
+                padding: 6px 10px 6px 12px;
+                border: 1px solid #d1d5db;
                 border-radius: 4px;
                 background-color: #fff;
                 font-size: inherit;
@@ -313,8 +314,29 @@ overlay.innerHTML = `
                 min-width: 120px;
                 min-height: 34px;
                 vertical-align: middle;
+                box-sizing: border-box;
             `;
-            replacement.className = cl.className;
+            const textSpan = document.createElement('span');
+            textSpan.textContent = displayText;
+            textSpan.style.cssText = `
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            `;
+            const arrowSpan = document.createElement('span');
+            arrowSpan.setAttribute('aria-hidden', 'true');
+            arrowSpan.textContent = '▼';
+            arrowSpan.style.cssText = `
+                flex-shrink: 0;
+                margin-left: 8px;
+                font-size: 0.6em;
+                line-height: 1;
+                color: #6b7280;
+                pointer-events: none;
+            `;
+            replacement.appendChild(textSpan);
+            replacement.appendChild(arrowSpan);
 
             if (cl.parentNode) {
                 cl.parentNode.replaceChild(replacement, cl);
