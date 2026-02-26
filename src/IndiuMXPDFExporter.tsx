@@ -765,12 +765,12 @@ overlay.innerHTML = `
             if (props.base64Attr?.setValue) {
                 props.base64Attr.setValue(base64);
             }
-            localStorage.setItem('pdfBase64', base64);
-            localStorage.setItem('pdfFileName', cleanFileName + '.pdf');
+            // localStorage.setItem('pdfBase64', base64);
+            // localStorage.setItem('pdfFileName', cleanFileName + '.pdf');
             if (props.onChange?.canExecute && props.onChange?.execute) {
                 props.base64Attr?.setValue(base64);
-                localStorage.setItem('pdfBase64', base64);
-                localStorage.setItem('pdfFileName', cleanFileName + '.pdf');
+                // localStorage.setItem('pdfBase64', base64);
+                // localStorage.setItem('pdfFileName', cleanFileName + '.pdf');
                 props.onChange.execute();
             }
             // Handle output
