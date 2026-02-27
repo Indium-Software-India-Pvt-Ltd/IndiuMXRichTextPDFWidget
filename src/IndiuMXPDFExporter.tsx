@@ -275,6 +275,56 @@ overlay.innerHTML = `
                 cl.checked = orig.checked;
                 if (orig.checked) cl.setAttribute('checked', 'checked');
                 else cl.removeAttribute('checked');
+                // Replace with custom span so PDF capture has a properly centered dot/check (native control often misaligns when scaled).
+                const replacement = document.createElement('span');
+                replacement.className = cl.className;
+                replacement.setAttribute('data-pdf-radio-or-checkbox', cl.type);
+                replacement.setAttribute('aria-checked', orig.checked ? 'true' : 'false');
+                if (cl.type === 'radio') {
+                    replacement.style.cssText = `
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 16px;
+                        height: 16px;
+                        min-width: 16px;
+                        min-height: 16px;
+                        border: 1px solid #737373;
+                        border-radius: 50%;
+                        flex-shrink: 0;
+                        vertical-align: middle;
+                        box-sizing: border-box;
+                    `;
+                    const dot = document.createElement('span');
+                    dot.style.cssText = orig.checked
+                        ? `width: 6px; height: 6px; border-radius: 50%; background-color: #404040; flex-shrink: 0;`
+                        : `width: 6px; height: 6px; border-radius: 50%; background-color: transparent; flex-shrink: 0;`;
+                    replacement.appendChild(dot);
+                } else {
+                    replacement.style.cssText = `
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 16px;
+                        height: 16px;
+                        min-width: 16px;
+                        min-height: 16px;
+                        border: 1px solid #737373;
+                        border-radius: 3px;
+                        flex-shrink: 0;
+                        vertical-align: middle;
+                        box-sizing: border-box;
+                        background-color: ${orig.checked ? '#404040' : 'transparent'};
+                    `;
+                    if (orig.checked) {
+                        const check = document.createElement('span');
+                        check.style.cssText = `width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); margin-bottom: 2px;`;
+                        replacement.appendChild(check);
+                    }
+                }
+                if (cl.parentNode) {
+                    cl.parentNode.replaceChild(replacement, cl);
+                }
             } else if (orig.type !== 'submit' && orig.type !== 'button' && orig.type !== 'hidden') {
                 cl.value = orig.value;
                 cl.setAttribute('value', orig.value);
