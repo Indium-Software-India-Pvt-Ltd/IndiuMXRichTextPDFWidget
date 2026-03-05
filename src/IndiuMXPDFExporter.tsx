@@ -1,9 +1,17 @@
-import { createElement, Fragment, useCallback, useState } from "react";
+import { createElement, Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { IndiuMXPDFExporterContainerProps } from "../typings/IndiuMXPDFExporterProps";
 import html2pdf from "html2pdf.js";
 
 export function IndiuMXPDFExporter(props: IndiuMXPDFExporterContainerProps): JSX.Element {
     const [busy, setBusy] = useState(false);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
 
     // Helper function
 const blobToBase64ArrayBuffer = async (blob: Blob): Promise<string> => {
@@ -518,6 +526,10 @@ overlay.innerHTML = `
         if (busy) return;
         setBusy(true);
 
+        const setBusyIfMounted = (value: boolean) => {
+            if (isMountedRef.current) setBusy(value);
+        };
+
         try {
             console.log('Starting PDF generation...');
 
@@ -861,10 +873,12 @@ overlay.innerHTML = `
             }
 
         } catch (error) {
-            console.error('PDF generation error:', error);
-            alert('Failed to generate PDF. Check the browser console for details.');
+            if (isMountedRef.current) {
+                console.error('PDF generation error:', error);
+                alert('Failed to generate PDF. Check the browser console for details.');
+            }
         } finally {
-            setBusy(false);
+            setBusyIfMounted(false);
         }
     }, [busy, props]);
 
